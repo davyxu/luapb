@@ -1,0 +1,1 @@
+protoc --descriptor_set_out=game.pb --proto_path "." addressbook.proto
