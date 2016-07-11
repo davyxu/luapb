@@ -27,13 +27,13 @@ void* LoadFileContent(const char* filename, unsigned int& size)
 	return buff;
 }
 
-bool LoadDescriptorFile(const char* filename, google::protobuf::FileDescriptorProto& fdp)
+bool LoadDescriptorFile(const char* filename, google::protobuf::FileDescriptorSet& fds)
 {
 	unsigned int size = 0;
 	auto content = LoadFileContent(filename, size);
 
 
-	if (!fdp.ParseFromArray(content, size))
+	if (!fds.ParseFromArray(content, size))
 	{
 		delete content;
 		return false;
