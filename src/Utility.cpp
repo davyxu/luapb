@@ -1,6 +1,5 @@
+#include "stdafx.h"
 #include "Utility.h"
-
-#include <stdio.h>
 
 void* LoadFileContent(const char* filename, unsigned int& size)
 {

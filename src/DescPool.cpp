@@ -1,5 +1,4 @@
-
-#include <sstream>
+#include "stdafx.h"
 #include "Utility.h"
 
 class PBProtoErrorCollector : public google::protobuf::DescriptorPool::ErrorCollector

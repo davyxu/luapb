@@ -372,6 +372,7 @@ public:
       lua_newuserdata (L, sizeof (UserdataValue <T>))) UserdataValue <T> ();
     lua_rawgetp (L, LUA_REGISTRYINDEX, ClassInfo <T>::getClassKey ());
     // If this goes off it means you forgot to register the class!
+	const char* t = lua_typename(L, -1);
     assert (lua_istable (L, -1));
     lua_setmetatable (L, -2);
     return ud->getPointer ();
