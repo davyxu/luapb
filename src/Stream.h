@@ -25,25 +25,27 @@ public:
 	const ::uint8* ToString(){ return mData; }
 
 public:
-	void BeginParse();
 
-	void EndParse();
+	int ReadFieldNumber();
 
-	::uint32 ReadTag();
+	bool BeginMessage(int& limit);
 
-	bool MessageReadGuard(::uint32 MessageLength, luabridge::LuaRef UnmarshalFunc, luabridge::LuaRef NewMsg);
+	bool EndMessage(int limit);
 
-	int ReadValue(lua_State* L);
+	void ReadValue(luabridge::LuaRef msgTable, const google::protobuf::FieldDescriptor* fd);	
 
 public:
 
-	void WriteValue(int FieldNumber, int FieldType, luabridge::LuaRef Value);
+	void WriteValue(const google::protobuf::FieldDescriptor* fd, luabridge::LuaRef Value);
 
 	void WriteMessageHead(int FieldNumber, int MessageBytes);	
 
-public:
-	static int FieldSize(int FieldType, luabridge::LuaRef LuaValue);
+public:	
+	static int FieldSize(const google::protobuf::FieldDescriptor* fd, luabridge::LuaRef LuaValue);
 	static int TagSize(int FieldNumber);
+
+
+
 private:
 	::uint32 mSize;
 	::uint8* mData;
@@ -51,3 +53,5 @@ private:
 	PBStreamUsage mUsage;
 	google::protobuf::io::CodedInputStream* mDataReader;
 };
+
+

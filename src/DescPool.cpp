@@ -106,8 +106,6 @@ bool InitDescriptorPool( const char* filename )
 		
 	}
 
-	auto d = FindMessage("tutorial.Person");
-
 	return true;
 }
 

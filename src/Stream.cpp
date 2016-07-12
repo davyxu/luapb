@@ -14,10 +14,11 @@ PBStream::PBStream(uint32 Size)
 PBStream::PBStream(const uint8* Data, uint32 Size)
 	: mData((uint8*)Data)
 	, mSize(Size)
-	, mDataReader(NULL)
 	, mUsage(PBU_ZeroCopyRead)
 {
+	using namespace google::protobuf;
 
+	mDataReader = new io::CodedInputStream(reinterpret_cast<const google::protobuf::uint8*>(mData), mSize);
 }
 
 PBStream::~PBStream()
@@ -32,29 +33,30 @@ PBStream::~PBStream()
 
 
 
-void PBStream::WriteValue(int FieldNumber, int FieldType, luabridge::LuaRef LuaValue)
+// Tag + Variant
+void PBStream::WriteValue(const google::protobuf::FieldDescriptor* fd, luabridge::LuaRef LuaValue)
 {
 	using namespace google::protobuf;
 
-	switch (FieldType)
+	switch (fd->type())
 	{
 	case FieldDescriptor::TYPE_FLOAT:
 	{
 		float Value = LuaValue;
 
-		mPointer = internal::WireFormatLite::WriteFloatToArray(FieldNumber, Value, mPointer);
+		mPointer = internal::WireFormatLite::WriteFloatToArray(fd->number(), Value, mPointer);
 	}
 	break;
 	case FieldDescriptor::TYPE_INT32:
-	{
+	{		
 		::int32 Value = LuaValue;
-		mPointer = internal::WireFormatLite::WriteInt32ToArray(FieldNumber, Value, mPointer);
+		mPointer = internal::WireFormatLite::WriteInt32ToArray(fd->number(), Value, mPointer);
 	}
 	break;
 	case FieldDescriptor::TYPE_BOOL:
 	{
 		bool Value = LuaValue;
-		mPointer = internal::WireFormatLite::WriteBoolToArray(FieldNumber, Value, mPointer);
+		mPointer = internal::WireFormatLite::WriteBoolToArray(fd->number(), Value, mPointer);
 	}
 	break;
 	case FieldDescriptor::TYPE_STRING:
@@ -64,7 +66,7 @@ void PBStream::WriteValue(int FieldNumber, int FieldType, luabridge::LuaRef LuaV
 		const char* Value = LuaValue;
 
 		int StrLen = strlen(Value);
-		mPointer = internal::WireFormatLite::WriteTagToArray(FieldNumber, internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, mPointer);
+		mPointer = internal::WireFormatLite::WriteTagToArray(fd->number(), internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, mPointer);
 		mPointer = google::protobuf::io::CodedOutputStream::WriteVarint32ToArray(StrLen, mPointer);
 		mPointer = google::protobuf::io::CodedOutputStream::WriteRawToArray(Value, StrLen, mPointer);
 	}
@@ -72,13 +74,27 @@ void PBStream::WriteValue(int FieldNumber, int FieldType, luabridge::LuaRef LuaV
 	case FieldDescriptor::TYPE_UINT32:
 	{
 		::uint32 Value = LuaValue;
-		mPointer = internal::WireFormatLite::WriteUInt32ToArray(FieldNumber, Value, mPointer);
+		mPointer = internal::WireFormatLite::WriteUInt32ToArray(fd->number(), Value, mPointer);
 	}
 	break;
 	case FieldDescriptor::TYPE_ENUM:
 	{
-		::int32 Value = LuaValue;
-		mPointer = internal::WireFormatLite::WriteEnumToArray(FieldNumber, Value, mPointer);
+		std::string Value = LuaValue;
+
+		if (fd->enum_type() == nullptr)
+		{
+			printf("field is not enum: %s\n", fd->full_name());
+			return;
+		}
+
+		auto evd = fd->enum_type()->FindValueByName(Value);
+		if (evd == nullptr)
+		{
+			printf("enum value not exists: %s in %s\n", Value.c_str(), fd->enum_type()->full_name().c_str());
+			return;
+		}
+
+		mPointer = internal::WireFormatLite::WriteEnumToArray(fd->number(), evd->number(), mPointer);
 	}
 	break;
 	default:
@@ -86,7 +102,7 @@ void PBStream::WriteValue(int FieldNumber, int FieldType, luabridge::LuaRef LuaV
 	}
 }
 
-
+// Tag + Size
 void PBStream::WriteMessageHead(int FieldNumber, int MessageBytes)
 {
 	using namespace google::protobuf;
@@ -96,36 +112,54 @@ void PBStream::WriteMessageHead(int FieldNumber, int MessageBytes)
 	mPointer = io::CodedOutputStream::WriteVarint32ToArray(MessageBytes, mPointer);
 }
 
+#define FillValue \
+	if (fd->is_repeated()) \
+	{ \
+		auto list = msgTable[fd->name()]; \
+		if (list.isTable()) \
+		{ \
+			list.append(Value); \
+		} \
+		else \
+		{ \
+			auto newList = luabridge::newTable(msgTable.state()); \
+			newList.append(Value); \
+			msgTable[fd->name()] = newList; \
+		} \
+	} \
+	else \
+	{ \
+		msgTable[fd->name()] = Value; \
+	}
 
-int PBStream::ReadValue(lua_State* L)
+
+void PBStream::ReadValue(luabridge::LuaRef msgTable, const google::protobuf::FieldDescriptor* fd )
 {
-	using namespace google::protobuf;
-
-	FieldDescriptor::Type FieldType = (FieldDescriptor::Type)luaL_checkinteger(L, 2);
+	using namespace google::protobuf;	
 
 	bool OK = false;
 
-	switch (FieldType)
+	switch (fd->type())
 	{
 	case FieldDescriptor::TYPE_FLOAT:
 	{
 		float Value = 0;
 		OK = internal::WireFormatLite::ReadPrimitive<float, internal::WireFormatLite::TYPE_FLOAT>(mDataReader, &Value);
-		luabridge::push(L, Value);
+		FillValue
 	}
 	break;
 	case FieldDescriptor::TYPE_INT32:
 	{
 		::int32 Value = 0;
 		OK = internal::WireFormatLite::ReadPrimitive<google::protobuf::int32, internal::WireFormatLite::TYPE_INT32>(mDataReader, &Value);
-		luabridge::push(L, Value);
+		FillValue
 	}
 	break;
 	case FieldDescriptor::TYPE_BOOL:
 	{
 		bool Value = false;
 		OK = internal::WireFormatLite::ReadPrimitive<bool, internal::WireFormatLite::TYPE_BOOL>(mDataReader, &Value);
-		luabridge::push(L, Value);
+		FillValue
 	}
 	break;
 	case FieldDescriptor::TYPE_STRING:
@@ -134,91 +168,96 @@ int PBStream::ReadValue(lua_State* L)
 	{
 		std::string Value;
 		OK = internal::WireFormatLite::ReadString(mDataReader, &Value);
-		luabridge::push(L, Value);
+		FillValue
 	}
 	break;
 	case FieldDescriptor::TYPE_UINT32:
 	{
 		::uint32 Value = 0;
 		OK = internal::WireFormatLite::ReadPrimitive<google::protobuf::uint32, internal::WireFormatLite::TYPE_UINT32>(mDataReader, &Value);
-		luabridge::push(L, Value);
+		FillValue
 	}
 	break;
 	case FieldDescriptor::TYPE_ENUM:
 	{
-		::int32 Value = 0;
-		OK = internal::WireFormatLite::ReadPrimitive<int, internal::WireFormatLite::TYPE_ENUM>(mDataReader, &Value);
-		luabridge::push(L, Value);
-	}
-	break;
-	case FieldDescriptor::TYPE_MESSAGE:
-	{
-		::uint32 Length;
-		OK = mDataReader->ReadVarint32(&Length);
-		luabridge::push(L, Length);
+		::int32 Number = 0;
+		OK = internal::WireFormatLite::ReadPrimitive<int, internal::WireFormatLite::TYPE_ENUM>(mDataReader, &Number);
+
+
+		std::string Value;
+
+		auto evd = fd->enum_type()->FindValueByNumber(Number);
+		if (evd == nullptr)
+		{
+			printf("field is not enum: %s\n", fd->full_name());
+			return;
+		}
+
+		Value = evd->name();
+
+		FillValue
 	}
 	break;
 	default:
-		assert("unknown fd type" == 0);
+		{
+			printf("field type is not support: %s\n", fd->full_name());
+		}
+		break;
 	}
-
-	luabridge::push(L, OK);
-
-	return 2;
 }
 
 
-bool PBStream::MessageReadGuard(uint32 MessageLength, luabridge::LuaRef UnmarshalFunc, luabridge::LuaRef NewMsg)
+bool PBStream::BeginMessage( int& limit )
 {
+	::int32 size = 0;
+
+	using namespace google::protobuf;
+
+	if (!internal::WireFormatLite::ReadPrimitive<google::protobuf::int32, internal::WireFormatLite::TYPE_INT32>(mDataReader, &size))
+	{
+		return false;
+	}
+
+
 	if (!mDataReader->IncrementRecursionDepth())
 		return false;
 
-	int Limit = mDataReader->PushLimit(MessageLength);
+	limit = mDataReader->PushLimit(size);
 
-	UnmarshalFunc(NewMsg, this);
+	return true;
+}
 
+bool PBStream::EndMessage(int limit )
+{
 	if (!mDataReader->ConsumedEntireMessage())
 		return false;
 
-	mDataReader->PopLimit(Limit);
+	mDataReader->PopLimit(limit);
 
 	mDataReader->DecrementRecursionDepth();
 
 	return true;
 }
 
-void PBStream::BeginParse()
-{
-	using namespace google::protobuf;
 
-	assert(mDataReader == NULL);
-
-	mDataReader = new io::CodedInputStream(reinterpret_cast<const google::protobuf::uint8*>(mData), mSize);
-}
-
-void PBStream::EndParse()
-{
-	using namespace google::protobuf;
-
-	assert(mDataReader != NULL);
-
-	SafeDelete(mDataReader);
-}
-
-uint32 PBStream::ReadTag()
+int PBStream::ReadFieldNumber()
 {
 	assert(mDataReader != NULL);
 
-	return mDataReader->ReadTag();
+	auto tag = mDataReader->ReadTag();
+	if (tag == 0)
+		return 0;
+
+	return google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag);
 }
 
 
 
-int PBStream::FieldSize(int FieldType, luabridge::LuaRef LuaValue)
+int PBStream::FieldSize(const google::protobuf::FieldDescriptor* fd, luabridge::LuaRef LuaValue)
 {
 	using namespace google::protobuf;
 
-	switch (FieldType)
+	switch (fd->type())
 	{
 	case FieldDescriptor::TYPE_FLOAT:
 	{
@@ -272,8 +311,16 @@ int PBStream::FieldSize(int FieldType, luabridge::LuaRef LuaValue)
 	break;
 	case FieldDescriptor::TYPE_ENUM:
 	{
-		::int32 Value = LuaValue;
-		return internal::WireFormatLite::EnumSize(Value);
+		std::string Value = LuaValue;
+
+		auto evd = fd->enum_type()->FindValueByName(Value);
+		if (evd == nullptr)
+		{
+			printf("enum value not exists: %s in %s", Value.c_str(), fd->enum_type()->full_name().c_str() );
+			return 0;
+		}
+
+		return internal::WireFormatLite::EnumSize(evd->number());
 	}
 	break;
 	case FieldDescriptor::TYPE_MESSAGE:

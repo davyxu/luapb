@@ -21,7 +21,10 @@ void dofile(lua_State* L, const char* filename )
 	}
 }
 
-bool TestBytes(int index, std::string mem )
+tutorial::Person answerPb;
+
+
+bool TestEncode(int index, std::string mem )
 {
 	std::string answer;
 
@@ -29,32 +32,11 @@ bool TestBytes(int index, std::string mem )
 	{
 	case 1:
 
-		tutorial::Person p;
-
-		if (p.ParseFromString(mem))
+		tutorial::Person memPb;
+		if ( memPb.ParseFromString(mem) && 
+			memPb.SerializeAsString() == answerPb.SerializeAsString())
 		{
-			if (p.name() != "hello")
-			{
-				printf("'name' not match");
-				return false;
-			}
-			if (p.id() != 123456)
-			{
-				printf("'id' not match");
-				return false;
-			}
-
-			if (p.test(0) != 1)
-			{
-				printf("'test1' not match");
-				return false;
-			}
-			if (p.test(1) != 2)
-			{
-				printf("'test1' not match");
-				return false;
-			}
-
+		
 			return true;
 		}
 
@@ -69,11 +51,34 @@ bool TestBytes(int index, std::string mem )
 void luaopen_test(lua_State* L)
 {
 	luabridge::getGlobalNamespace(L)
-		.addFunction("TestBytes", TestBytes);		
+		.addFunction("TestEncode", TestEncode);		
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+
+	
+	answerPb.set_name("hello");
+	answerPb.set_id(123456);
+	answerPb.add_test(1);
+	answerPb.add_test(2);
+	
+		{
+		auto number = answerPb.add_phone();
+		number->set_number("789");
+		number->set_type(tutorial::WORK);
+		}
+
+		{
+		auto number = answerPb.add_phone();
+		number->set_number("456");
+		number->set_type(tutorial::HOME);
+		}
+	
+	
+
+	auto size = answerPb.ByteSize();
+
 	InitDescriptorPool("game.pb");
 
 	lua_State* L = luaL_newstate();
