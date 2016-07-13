@@ -1,4 +1,6 @@
 
+luapb_register("game.pb")
+
 --[[
 
 if TestEncode(1, Encode("tutorial.Person", 
@@ -21,7 +23,7 @@ if TestEncode(1, Encode("tutorial.Person",
 end
 ]]
 
-local buff = Encode("tutorial.Person", 
+local buff = luapb_encode("tutorial.Person", 
 {
 	name = "hello",
 	test = {1, 2},	
@@ -70,9 +72,7 @@ function dump( t )
 end
 
 
-dump( Decode( "tutorial.Person", buff ) )
-
-
+dump( luapb_decode( "tutorial.Person", buff ) )
 
 --[[
 hello×Ö¶Î = 1+ 6 = 7

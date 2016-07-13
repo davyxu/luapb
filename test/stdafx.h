@@ -17,4 +17,9 @@ extern "C"
 }
 
 
+#include "LuaBridge.h"
+#include "RefCountedObject.h"
+#include "RefCountedPtr.h"
+
+
 // TODO: reference additional headers your program requires here

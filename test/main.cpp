@@ -2,9 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "../src/stdafx.h"
-#include "../src/Encoder.h"
-#include "../src/DescPool.h"
+#include "../src/luapb.h"
 #include "addressbook.pb.h"
 
 void dofile(lua_State* L, const char* filename )
@@ -63,23 +61,21 @@ int _tmain(int argc, _TCHAR* argv[])
 	answerPb.add_test(1);
 	answerPb.add_test(2);
 	
-		{
+	{
 		auto number = answerPb.add_phone();
 		number->set_number("789");
 		number->set_type(tutorial::WORK);
-		}
+	}
 
-		{
+	{
 		auto number = answerPb.add_phone();
 		number->set_number("456");
 		number->set_type(tutorial::HOME);
-		}
-	
+	}
+
 	
 
 	auto size = answerPb.ByteSize();
-
-	InitDescriptorPool("game.pb");
 
 	lua_State* L = luaL_newstate();
 	luaL_openlibs(L);
@@ -87,15 +83,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	luaopen_luapb(L);
 	luaopen_test(L);
 
-	
-
-
-	dofile(L, "test.lua");
-
+	dofile(L, "test.lua");		
 
 	lua_close(L);
-
-	ReleaseDescriptorPool();
 
 	return 0;
 }

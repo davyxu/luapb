@@ -1,10 +1,7 @@
 #include "stdafx.h"
 #include "DescPool.h"
 #include "Stream.h"
-#include "ByteSize.h"
-#include "Encoder.h"
 
-#include "Decoder.h"
 
 
 void RawEncode(PBStream* stream, const google::protobuf::Descriptor* msgD, luabridge::LuaRef tab)
@@ -94,10 +91,3 @@ int Encode(lua_State* L )
 
 
 
-void luaopen_luapb(lua_State* L ){
-
-	luabridge::getGlobalNamespace(L)
-		.addFunction("ByteSize", ByteSize)
-		.addCFunction("Encode", Encode)
-		.addCFunction("Decode", Decode);
-}

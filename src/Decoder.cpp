@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "DescPool.h"
 #include "Stream.h"
-#include "Decoder.h"
 
 luabridge::LuaRef RawDecode(lua_State* L, PBStream* stream, const google::protobuf::Descriptor* msgD)
 {

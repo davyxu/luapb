@@ -16,6 +16,7 @@ extern "C"
 #include "lauxlib.h"
 }
 
+
 #include "LuaBridge.h"
 #include "RefCountedObject.h"
 #include "RefCountedPtr.h"
@@ -48,3 +49,16 @@ typedef uint64_t uint64;
 #define SafeDelete(p) {if(p) {delete (p);(p)= 0 ;}}
 
 #define max(a,b)    (((a) > (b)) ? (a) : (b))
+
+
+#include "luapb.h"
+
+extern bool InitDescriptorPool(const char* filename);
+
+extern void ReleaseDescriptorPool();
+
+extern int RawByteSize(const google::protobuf::Descriptor* msgD, luabridge::LuaRef tab);
+
+extern const google::protobuf::Descriptor* FindMessage(const char* name);
+
+extern const google::protobuf::EnumDescriptor* FindEnum(const char* name);
